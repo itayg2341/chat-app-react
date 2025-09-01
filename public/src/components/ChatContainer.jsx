@@ -11,45 +11,47 @@ export default function ChatContainer({ currentChat, socket }) {
   const scrollRef = useRef();
   const [arrivalMessage, setArrivalMessage] = useState(null);
 
-  useEffect(async () => {
-    const data = await JSON.parse(
-      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-    );
-    const response = await axios.post(recieveMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
-    });
-    setMessages(response.data);
-  }, [currentChat]);
-
   useEffect(() => {
-    const getCurrentChat = async () => {
-      if (currentChat) {
-        await JSON.parse(
-          localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-        )._id;
-      }
-    };
-    getCurrentChat();
+    async function fetchMessages() {
+      const data = await JSON.parse(
+        localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
+      );
+      const response = await axios.post(recieveMessageRoute, {
+        from: data._id,
+        to: currentChat._id,
+      });
+      setMessages(response.data);
+    }
+    fetchMessages();
   }, [currentChat]);
 
-  const handleSendMsg = async (msg) => {
+  const handleSendMsg = async (msg, file) => {
     const data = await JSON.parse(
       localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
     );
+
+    const formData = new FormData();
+    formData.append("from", data._id);
+    formData.append("to", currentChat._id);
+    formData.append("message", msg);
+    if (file) {
+      formData.append("file", file);
+    }
+
+    const { data: responseData } = await axios.post(sendMessageRoute, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
     socket.current.emit("send-msg", {
       to: currentChat._id,
       from: data._id,
-      msg,
-    });
-    await axios.post(sendMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
-      message: msg,
+      message: responseData.message,
     });
 
     const msgs = [...messages];
-    msgs.push({ fromSelf: true, message: msg });
+    msgs.push({ fromSelf: true, message: responseData.message });
     setMessages(msgs);
   };
 
@@ -59,7 +61,7 @@ export default function ChatContainer({ currentChat, socket }) {
         setArrivalMessage({ fromSelf: false, message: msg });
       });
     }
-  }, []);
+  }, [socket]);
 
   useEffect(() => {
     arrivalMessage && setMessages((prev) => [...prev, arrivalMessage]);
@@ -68,6 +70,20 @@ export default function ChatContainer({ currentChat, socket }) {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const renderMessage = (message) => {
+    if (message.endsWith(".png") || message.endsWith(".jpg") || message.endsWith(".jpeg") || message.endsWith(".gif")) {
+      return <img src={message} alt="attachment" style={{ maxWidth: "100%", height: "auto" }} />;
+    } else if (message.endsWith(".mp4") || message.endsWith(".webm")) {
+      return <video src={message} controls style={{ maxWidth: "100%", height: "auto" }} />;
+    } else if (message.endsWith(".mp3") || message.endsWith(".wav")) {
+      return <audio src={message} controls />;
+    } else if (message.startsWith("http://") || message.startsWith("https://")) {
+      return <a href={message} target="_blank" rel="noopener noreferrer">{message}</a>;
+    } else {
+      return <p>{message}</p>;
+    }
+  };
 
   return (
     <Container>
@@ -95,7 +111,7 @@ export default function ChatContainer({ currentChat, socket }) {
                 }`}
               >
                 <div className="content ">
-                  <p>{message.message}</p>
+                  {renderMessage(message.message)}
                 </div>
               </div>
             </div>
