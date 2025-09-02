@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BsEmojiSmileFill } from "react-icons/bs";
+import { BsEmojiSmileFill, BsPaperclip } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
 import styled from "styled-components";
 import Picker from "emoji-picker-react";
@@ -7,6 +7,8 @@ import Picker from "emoji-picker-react";
 export default function ChatInput({ handleSendMsg }) {
   const [msg, setMsg] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [file, setFile] = useState(null);
+
   const handleEmojiPickerhideShow = () => {
     setShowEmojiPicker(!showEmojiPicker);
   };
@@ -19,10 +21,15 @@ export default function ChatInput({ handleSendMsg }) {
 
   const sendChat = (event) => {
     event.preventDefault();
-    if (msg.length > 0) {
-      handleSendMsg(msg);
+    if (msg.length > 0 || file) {
+      handleSendMsg(msg, file);
       setMsg("");
+      setFile(null);
     }
+  };
+
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
   };
 
   return (
@@ -31,6 +38,17 @@ export default function ChatInput({ handleSendMsg }) {
         <div className="emoji">
           <BsEmojiSmileFill onClick={handleEmojiPickerhideShow} />
           {showEmojiPicker && <Picker onEmojiClick={handleEmojiClick} />}
+        </div>
+        <div className="file-upload">
+          <label htmlFor="file-input">
+            <BsPaperclip />
+          </label>
+          <input
+            type="file"
+            id="file-input"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
         </div>
       </div>
       <form className="input-container" onSubmit={(event) => sendChat(event)}>
@@ -51,7 +69,7 @@ export default function ChatInput({ handleSendMsg }) {
 const Container = styled.div`
   display: grid;
   align-items: center;
-  grid-template-columns: 5% 95%;
+  grid-template-columns: 10% 90%;
   background-color: #080420;
   padding: 0 2rem;
   @media screen and (min-width: 720px) and (max-width: 1080px) {
@@ -95,6 +113,13 @@ const Container = styled.div`
         .emoji-group:before {
           background-color: #080420;
         }
+      }
+    }
+    .file-upload {
+      svg {
+        font-size: 1.5rem;
+        color: #ffff00c8;
+        cursor: pointer;
       }
     }
   }

@@ -33,30 +33,56 @@ export default function ChatContainer({ currentChat, socket }) {
     getCurrentChat();
   }, [currentChat]);
 
-  const handleSendMsg = async (msg) => {
+  const handleSendMsg = async (msg, file) => {
     const data = await JSON.parse(
       localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
     );
-    socket.current.emit("send-msg", {
-      to: currentChat._id,
-      from: data._id,
-      msg,
-    });
-    await axios.post(sendMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
-      message: msg,
-    });
 
-    const msgs = [...messages];
-    msgs.push({ fromSelf: true, message: msg });
-    setMessages(msgs);
+    let fileData = null;
+    if (file) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        fileData = reader.result;
+        sendMessage(msg, fileData);
+      };
+    } else {
+      sendMessage(msg, fileData);
+    }
+
+    const sendMessage = async (msg, fileData) => {
+      socket.current.emit("send-msg", {
+        to: currentChat._id,
+        from: data._id,
+        msg,
+        file: file ? file.name : null,
+      });
+
+      await axios.post(sendMessageRoute, {
+        from: data._id,
+        to: currentChat._id,
+        message: msg,
+        file: fileData,
+      });
+
+      const msgs = [...messages];
+      msgs.push({
+        fromSelf: true,
+        message: msg,
+        file: file ? file.name : null,
+      });
+      setMessages(msgs);
+    };
   };
 
   useEffect(() => {
     if (socket.current) {
-      socket.current.on("msg-recieve", (msg) => {
-        setArrivalMessage({ fromSelf: false, message: msg });
+      socket.current.on("msg-recieve", (data) => {
+        setArrivalMessage({
+          fromSelf: false,
+          message: data.msg,
+          file: data.file,
+        });
       });
     }
   }, []);
@@ -96,6 +122,15 @@ export default function ChatContainer({ currentChat, socket }) {
               >
                 <div className="content ">
                   <p>{message.message}</p>
+                  {message.file && (
+                    <a
+                      href={`${message.file}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {message.file}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -120,7 +155,7 @@ const Container = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: 0 2rem;
-    .user-details {
+    .user-.details {
       display: flex;
       align-items: center;
       gap: 1rem;
@@ -162,6 +197,10 @@ const Container = styled.div`
         color: #d1d1d1;
         @media screen and (min-width: 720px) and (max-width: 1080px) {
           max-width: 70%;
+        }
+        a {
+          color: #87ceeb;
+          text-decoration: none;
         }
       }
     }

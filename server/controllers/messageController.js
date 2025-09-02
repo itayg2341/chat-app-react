@@ -1,4 +1,5 @@
 const Messages = require("../models/messageModel");
+const fs = require("fs");
 
 module.exports.getMessages = async (req, res, next) => {
   try {
@@ -14,6 +15,7 @@ module.exports.getMessages = async (req, res, next) => {
       return {
         fromSelf: msg.sender.toString() === from,
         message: msg.message.text,
+        file: msg.message.file,
       };
     });
     res.json(projectedMessages);
@@ -24,9 +26,18 @@ module.exports.getMessages = async (req, res, next) => {
 
 module.exports.addMessage = async (req, res, next) => {
   try {
-    const { from, to, message } = req.body;
+    const { from, to, message, file } = req.body;
+    let filePath = null;
+    if (file) {
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}`;
+      const fileData = Buffer.from(file, "base64");
+      filePath = `uploads/${fileName}`;
+      fs.writeFileSync(filePath, fileData);
+    }
     const data = await Messages.create({
-      message: { text: message },
+      message: { text: message, file: filePath },
       users: [from, to],
       sender: from,
     });
